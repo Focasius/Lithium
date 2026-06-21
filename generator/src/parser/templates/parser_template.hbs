@@ -1,0 +1,103 @@
+// Auto-generated parser by Lithium Generator
+#![allow(unused)]
+
+use std::collections::HashMap;
+
+#[derive(Debug, Clone)]
+pub enum AST {
+Value(String),
+// 用户可扩展
+}
+
+pub struct {{parser_name}}<'a> {
+    input: &'a str,
+    chars: Vec<char>,
+        pos: usize,
+        }
+
+        impl<'a> {{parser_name}}<'a> {
+                pub fn new(input: &'a str) -> Self {
+                Self {
+                input,
+                chars: input.chars().collect(),
+                pos: 0,
+                }
+                }
+
+                #[inline]
+                fn peek(&self) -> Option<char> {
+                    self.chars.get(self.pos).copied()
+                    }
+
+                    #[inline]
+                    fn consume(&mut self) -> Option<char> {
+                        let ch = self.peek()?;
+                        self.pos += 1;
+                        Some(ch)
+                        }
+
+                        #[inline]
+                        fn expect_char(&mut self, expected: char) -> Result<char, String> {
+                            if let Some(ch) = self.consume() {
+                            if ch == expected {
+                            Ok(ch)
+                            } else {
+                            Err(self.error(&format!("Expected '{}', found '{}'", expected, ch)))
+                            }
+                            } else {
+                            Err(self.error(&format!("Expected '{}', got EOF", expected)))
+                            }
+                            }
+
+                            #[inline]
+                            fn match_char_class(&mut self, negated: bool, items: &[(u32, u32)]) -> Result<char, String>
+                                {
+                                if let Some(ch) = self.peek() {
+                                let cp = ch as u32;
+                                let mut matched = false;
+                                for (start, end) in items {
+                                if cp >= *start && cp <= *end { matched=true; break; } } if matched !=negated {
+                                    self.consume(); Ok(ch) } else { Err(self.error(&format!("Character '{}' not in
+                                    class", ch))) } } else { Err(self.error("Expected character, got EOF")) } }
+                                    #[inline] fn match_regex(&mut self, pattern: &str) -> Result<String, String> {
+                                        // 占位实现，用户可自定义
+                                        Err(self.error(&format!("Regex '{}' not supported in parser (use lexical
+                                        tokens)", pattern)))
+                                        }
+
+                                        fn error(&self, msg: &str) -> String {
+                                        let (line, col) = self.line_col();
+                                        format!("{} at {}:{}", msg, line, col)
+                                        }
+
+                                        fn line_col(&self) -> (usize, usize) {
+                                        let mut line = 1;
+                                        let mut col = 1;
+                                        for (i, ch) in self.input.chars().enumerate() {
+                                        if i == self.pos { break; }
+                                        if ch == '\n' { line += 1; col = 1; } else { col += 1; }
+                                        }
+                                        (line, col)
+                                        }
+
+                                        // 可选：并行解析多个输入（需要启用 rayon feature）
+                                        #[cfg(feature = "parallel")]
+                                        pub fn parse_all(inputs: &[&str]) -> Vec<Result<AST, String>> {
+                                            use rayon::prelude::*;
+                                            inputs.par_iter().map(|s| {
+                                            let mut parser = {{parser_name}}::new(s);
+                                            parser.parse()
+                                            }).collect()
+                                            }
+
+                                            // 规则解析函数
+                                            {{#each rules}}
+                                            pub fn parse_{{this.name}}(&mut self) -> Result<AST, String> {
+                                                {{{this.body}}}
+                                                }
+                                                {{/each}}
+
+                                                pub fn parse(&mut self) -> Result<AST, String> {
+                                                    self.parse_{{start}}()
+                                                    }
+                                                    }
